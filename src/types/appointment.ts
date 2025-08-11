@@ -17,6 +17,8 @@ export interface Event {
   duration_minutes: number // en minutos
   price?: number
   availableSlots: TimeSlot[]
+  max_days_ahead?: number
+  start_date?: string
 }
 
 export interface TimeSlot {

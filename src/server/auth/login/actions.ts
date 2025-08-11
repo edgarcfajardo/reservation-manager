@@ -6,23 +6,25 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 
 export async function login(email: string, password: string) {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
-  // type-casting here for convenience
-  // in practice, you should validate your inputs
-  const data = {
-    email,
-    password,
+  // Validación básica de email y password
+  if (!email || !email.includes('@')) {
+    return { success: false, error: 'El email es invalido' };
+  }
+  if (!password || password.length < 6) {
+    return { success: false, error: 'La contraseña debe tener al menos 6 caracteres' };
   }
 
-  const { error } = await supabase.auth.signInWithPassword(data)
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return error;
+    return { success: false, error: error.message || 'No se pudo iniciar sesión' };
   }
 
-  revalidatePath('/', 'layout')
-  redirect('/dashboard/businesses')
+  revalidatePath('/', 'layout');
+  // No redirigir desde el server action, deja que el cliente lo haga
+  return { success: true };
 }
 
 
@@ -38,23 +40,26 @@ export const logout = async () => {
 
 
 export async function signup(email: string, password: string) {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
-  // type-casting here for convenience
-  // in practice, you should validate your inputs
-  const data = {
-    email,
-    password,
+  // Validación básica de email y password
+  if (!email || !email.includes('@')) {
+    return { success: false, error: 'El email es invalido' };
+  }
+  if (!password || password.length < 6) {
+    return { success: false, error: 'La contraseña debe tener al menos 6 caracteres' };
   }
 
-  const { error } = await supabase.auth.signUp(data)
+  const { error } = await supabase.auth.signUp({ email, password });
 
   if (error) {
-    return error;
+    // Devuelve el mensaje real del error de Supabase
+    return { success: false, error: error.message || 'No se pudo registrar el usuario' };
   }
 
-  revalidatePath('/', 'layout')
-  redirect('/login')
+  revalidatePath('/', 'layout');
+  // No redirigir desde el server action, deja que el cliente lo haga
+  return { success: true };
 }
 
 

@@ -49,18 +49,27 @@ export default function RegisterForm({ isLoading: externalLoading }: LoginFormPr
             return
         }
 
-        const error = await signup(email, password);
+        const result = await signup(email, password);
 
-        if (error) {
-            setErrorText(error.message)
+        if (!result.success) {
+            setErrorText(result.error ?? "Error desconocido");
             toast.error("Error", {
-                description: error.message,
+                description: result.error ?? "Error desconocido",
                 position: "top-center",
                 closeButton: true
-            })
+            });
+            setInternalLoading(false);
+            return;
         }
 
-        setInternalLoading(false)
+        toast.success("Registro exitoso", {
+            description: "Revisa tu correo para activar tu cuenta.",
+            position: "top-center",
+            closeButton: true
+        });
+        setInternalLoading(false);
+        // Opcional: redirigir al login
+        window.location.href = "/login";
     }
 
     return (

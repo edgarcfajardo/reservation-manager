@@ -25,27 +25,27 @@ export default function LoginForm({ isLoading: externalLoading }: LoginFormProps
 
   // Corregí el nombre de la función de onSubmi a onSubmit
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+    event.preventDefault();
 
-    setInternalLoading(true)
-    setErrorText('')
+    setInternalLoading(true);
+    setErrorText("");
 
-    const formData = new FormData(event.currentTarget)
-    const email = formData.get('email') as string
-    const password = formData.get('password') as string
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
 
-    const error = await login(email, password)
+    const result = await login(email, password);
 
-    if (error) {
-      setErrorText(error.message)
+    if (!result.success) {
+      setErrorText(result.error ?? "Error desconocido");
       toast.error("Error", {
-        description: error.message,
+        description: result.error ?? "Error desconocido",
         position: "top-center",
-        closeButton: true
-      })
+        closeButton: true,
+      });
     }
-
-    setInternalLoading(false)
+    // Si login es exitoso, puedes redirigir aquí si lo deseas
+    setInternalLoading(false);
   }
 
   return (

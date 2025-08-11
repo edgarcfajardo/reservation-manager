@@ -15,35 +15,44 @@ interface TimeSelectionStepProps {
   onSelectDateTime: (date: string, time: string) => void
 }
 
-/**
- * Componente para seleccionar fecha y hora (diseño en 2 columnas)
- */
 export function TimeSelectionStep({ event, onSelectDateTime }: TimeSelectionStepProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
 
-  // Usar los slots reales recibidos por props
-  const availableSlots: TimeSlot[] = event.availableSlots || [];
+  const availableSlots: TimeSlot[] = event.availableSlots || []
 
-  // Solo fechas que tienen al menos un horario disponible
-  const availableDates = availableSlots.map((s) => new Date(`${s.date}T00:00:00`));
+  // Limitar fechas según max_days_ahead
+  const maxDaysAhead = event.max_days_ahead ?? 30
+  const today = new Date()
+  const startDate = event.start_date
+    ? new Date(`${event.start_date}T00:00:00`)
+    : today
 
-  // Si no hay fechas disponibles, mostrar mensaje claro
-  const noAvailableDates = availableDates.length === 0;
+  // Si la fecha de inicio es anterior a hoy, usamos hoy
+  const effectiveStartDate = startDate < today ? today : startDate
 
-  // Obtiene los horarios disponibles para la fecha seleccionada
+  const lastAllowedDate = new Date(effectiveStartDate)
+  lastAllowedDate.setDate(lastAllowedDate.getDate() + maxDaysAhead)
+
+  // Filtrar solo fechas válidas
+  const availableDates = availableSlots
+    .map((s) => {
+      const d = new Date(`${s.date}T00:00:00`)
+      return d >= effectiveStartDate && d <= lastAllowedDate ? d : null
+    })
+    .filter((d): d is Date => d !== null)
+
+  const noAvailableDates = availableDates.length === 0
+
   const getAvailableTimesForDate = (date?: Date) => {
-    if (!date) return [];
-    const dateString = format(date, "yyyy-MM-dd");
-    // Solo retorna los horarios si existen para esa fecha
-    return availableSlots.find((s) => s.date === dateString)?.times ?? [];
-  };
+    if (!date) return []
+    const dateString = format(date, "yyyy-MM-dd")
+    return availableSlots.find((s) => s.date === dateString)?.times ?? []
+  }
 
-  // Solo mostrar horarios si la fecha seleccionada tiene horarios disponibles
-  const availableTimesForSelectedDate = selectedDate ? getAvailableTimesForDate(selectedDate) : [];
-
-  // Si no hay fecha seleccionada, NO mostrar ningún horario
-  // Revisar y eliminar: defaultTimeSlots no se usa
+  const availableTimesForSelectedDate = selectedDate
+    ? getAvailableTimesForDate(selectedDate)
+    : []
 
   const handleConfirm = () => {
     if (!selectedDate || !selectedTime) return
@@ -53,7 +62,7 @@ export function TimeSelectionStep({ event, onSelectDateTime }: TimeSelectionStep
   return (
     <div className="w-full max-w-7xl mx-auto p-6">
       <div className="grid grid-cols-12 gap-8">
-        {/* Columna izquierda: solo info, altura igual a calendario */}
+        {/* Columna izquierda */}
         <div className="col-span-12 lg:col-span-4">
           <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow h-full">
             <div className="flex items-center justify-center mb-4">
@@ -61,11 +70,9 @@ export function TimeSelectionStep({ event, onSelectDateTime }: TimeSelectionStep
                 <CalendarIcon className="h-5 w-5 text-indigo-600" />
               </div>
             </div>
-
             <h3 className="text-lg font-semibold text-gray-800 text-center mb-2">Información</h3>
             <h4 className="font-bold text-gray-900 mb-2">{event.name}</h4>
             <p className="text-gray-600 mb-4">{event.description}</p>
-
             <div className="space-y-3">
               <div className="flex items-center gap-3 text-gray-700">
                 <Clock className="h-4 w-4 text-blue-600" />
@@ -85,7 +92,7 @@ export function TimeSelectionStep({ event, onSelectDateTime }: TimeSelectionStep
           </div>
         </div>
 
-        {/* Columna derecha: calendario + lista de tiempos */}
+        {/* Columna derecha */}
         <div className="col-span-12 lg:col-span-8">
           <Card className="gap-0 p-0 h-full flex flex-col">
             <CardContent className="relative p-0 md:pr-48 flex-grow">
@@ -93,7 +100,10 @@ export function TimeSelectionStep({ event, onSelectDateTime }: TimeSelectionStep
                 {noAvailableDates ? (
                   <div className="flex flex-col items-center justify-center w-full py-12">
                     <AlertCircle className="h-8 w-8 text-red-400 mb-2" />
-                    <span className="text-red-500 font-semibold text-center">No hay horarios disponibles para agendar en este evento.<br />Intenta con otra fecha o evento.</span>
+                    <span className="text-red-500 font-semibold text-center">
+                      No hay horarios disponibles para agendar en este evento.
+                      <br />Intenta con otra fecha o evento.
+                    </span>
                   </div>
                 ) : (
                   <Calendar
@@ -101,13 +111,15 @@ export function TimeSelectionStep({ event, onSelectDateTime }: TimeSelectionStep
                     selected={selectedDate}
                     onSelect={(d) => {
                       setSelectedDate(d)
-                      setSelectedTime(null) // reset hora al cambiar fecha
+                      setSelectedTime(null)
                     }}
-                    defaultMonth={selectedDate ?? new Date()}
+                    defaultMonth={selectedDate ?? effectiveStartDate}
                     showOutsideDays={false}
-                    // deshabilitar fechas que NO estén en availableDates
-                    // Solo permite seleccionar fechas con horarios disponibles
-                    disabled={(date) => !availableDates.some((d) => isSameDay(d, date))}
+                    disabled={(date) => {
+                      const outOfRange = date < effectiveStartDate || date > lastAllowedDate
+                      const notInAvailable = !availableDates.some((d) => isSameDay(d, date))
+                      return outOfRange || notInAvailable
+                    }}
                     className="bg-transparent p-0 [--cell-size:--spacing(10)] md:[--cell-size:--spacing(12)]"
                     formatters={{
                       formatWeekdayName: (date) =>
@@ -120,7 +132,6 @@ export function TimeSelectionStep({ event, onSelectDateTime }: TimeSelectionStep
 
               <div className="no-scrollbar inset-y-0 right-0 flex max-h-72 w-full scroll-pb-6 flex-col gap-4 overflow-y-auto border-t p-6 md:absolute md:max-h-none md:w-48 md:border-t-0 md:border-l">
                 <div className="grid gap-2">
-                  {/* Solo mostrar horarios si hay fecha seleccionada y hay horarios disponibles */}
                   {selectedDate && availableTimesForSelectedDate.length > 0 ? (
                     availableTimesForSelectedDate.map((time) => (
                       <Button
@@ -133,7 +144,9 @@ export function TimeSelectionStep({ event, onSelectDateTime }: TimeSelectionStep
                       </Button>
                     ))
                   ) : (
-                    <span className="text-gray-400 text-sm">Selecciona una fecha con horarios disponibles.</span>
+                    <span className="text-gray-400 text-sm">
+                      Selecciona una fecha con horarios disponibles.
+                    </span>
                   )}
                 </div>
               </div>
